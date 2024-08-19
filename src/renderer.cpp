@@ -7,10 +7,10 @@
 
 // see https://github.com/ocornut/imgui/tree/master/examples/example_win32_opengl3
 
-bool Renderer::initialize() {
+bool Renderer::initialize(int width, int height) {
     wc = { sizeof(wc), CS_OWNDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"main", nullptr };
     ::RegisterClassExW(&wc);
-    winHandle = ::CreateWindowW(wc.lpszClassName, L"Barnes Hut Simulation", WS_OVERLAPPEDWINDOW, 100, 100, 800, 800, nullptr, nullptr, wc.hInstance, nullptr);
+    winHandle = ::CreateWindowW(wc.lpszClassName, L"Barnes Hut Simulation", WS_OVERLAPPEDWINDOW, 100, 100, width, height, nullptr, nullptr, wc.hInstance, nullptr);
 
     if (!createDevice(winHandle, &g_mainWindow)) {
         cleanupDevice(winHandle, &g_mainWindow);

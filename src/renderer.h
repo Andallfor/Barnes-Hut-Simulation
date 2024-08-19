@@ -43,7 +43,7 @@ public:
     Renderer(Renderer const &) = delete;
     Renderer& operator=(const Renderer &) = delete;
 
-    bool initialize();
+    bool initialize(int width, int height);
     bool update();
     void render();
     void cleanup();
