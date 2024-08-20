@@ -159,6 +159,8 @@
         <ClInclude Include="src/imgui/imgui_impl_opengl3.h" />
         <ClInclude Include="src/imgui/imgui_impl_opengl3_loader.h" />
         <ClInclude Include="src/renderer.h" />
+        <ClInclude Include="src/point.h" />
+        <ClInclude Include="src/body.h" />
         <ClInclude Include="src/universe.h" />
     </ItemGroup>
     <ItemGroup>
@@ -170,6 +172,7 @@
         <ClCompile Include="src/imgui/imgui_impl_opengl3.cpp" />
         <ClCompile Include="src/imgui/imgui_impl_win32.cpp" />
         <ClCompile Include="src/renderer.cpp" />
+        <ClCompile Include="src/body.cpp" />
         <ClCompile Include="src/universe.cpp" />
         <ClCompile Include="src/main.cpp" />
     </ItemGroup>

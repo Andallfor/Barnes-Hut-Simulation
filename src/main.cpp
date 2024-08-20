@@ -10,15 +10,11 @@ int main() {
 
     if (!red.initialize(width, height)) return 1;
 
-    Universe universe(width, height);
+    Universe universe(width, height, 400);
+    universe.registerStar({230, 230}, 1, {std::sqrt(body::G * 50000 / 20), 0});
+    universe.registerStar({230, 210}, 50000, {0, 0});
 
-    universe.registerStar({200, 50}, 100);
-    universe.registerStar({600, 500}, 100);
-    universe.registerStar({700, 150}, 100);
-    universe.registerStar({50, 200}, 100);
-    universe.registerStar({190, 80}, 100);
-    universe.registerStar({300, 220}, 10000000);
-    universe.registerStar({350, 680}, 100);
+    //universe.registerStar({190, 210}, 25000, {0, -1}); // remove for stable orbit
 
     GLuint imgTex;
     glGenTextures(1, &imgTex);
@@ -30,9 +26,13 @@ int main() {
     bool debug = false;
     bool drawQuadBounds = false;
     bool drawSameDepthOnly = false;
+    bool run = false;
     int depth = -1;
     while (red.update()) {
+        if (run) universe.step();
+
         ImGui::Begin("Debug");
+        ImGui::Checkbox("Run", &run);
         ImGui::Checkbox("Debug", &debug);
 
         if (debug) {

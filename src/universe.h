@@ -3,7 +3,12 @@
 
 #include <vector>
 #include <functional>
+#include <cmath>
+#include <ctime>
+
 #include "renderer.h"
+#include "body.h"
+#include "point.h"
 
 /*
 * UNITS
@@ -22,54 +27,10 @@ struct snapshotConfig {
     bool operator!=(snapshotConfig con) { return !(*this == con); }
 };
 
-struct point { double x, y; };
-struct pointui { uint16_t x, y; };
-
-struct quad {
-    point ll, ur;
-    bool contains(point p) { return p.x >= ll.x && p.y >= ll.y && p.x <= ur.x && p.y <= ur.y; }
-};
-
-struct strippedBody {
-    point pos;
-    double mass;
-    point acceleration = { 0, 0 };
-    point velocity = { 0, 0 };
-};
-
-struct body {
-    static constexpr double DELTA = 0;
-    static constexpr double G = 4.3009172706e-03;
-
-    point pos; // if external node, true position of body. otherwise com
-    quad bounds;
-    double mass; // mass of 0 means that it is empty
-
-    /* children order
-    *  ll ---+
-    *    0 1 |
-    *    2 3 |
-    *        ur
-    */
-    struct body* children[4] = { nullptr };
-
-    point acceleration = {0, 0};
-    point velocity = {0, 0};
-
-    body* getChild(int ind);
-
-    bool isLeaf() { return !children[0] && !children[1] && !children[2] && !children[3]; }
-
-    double distTo(body* b) { return std::sqrt((b->pos.x - pos.x) * (b->pos.x - pos.x) +
-                                              (b->pos.y - pos.y) * (b->pos.y - pos.y)); }
-
-    void applyForceFrom(body* b, double d);
-    void applyForceFrom(body* b) { applyForceFrom(b, distTo(b)); }
-};
-
 class Universe {
 private:
     int width, height;
+    double lengthPerPixel;
     snapshotConfig prevConfig;
 
     GLubyte black[3] = { 0, 0, 0 };
@@ -88,15 +49,29 @@ private:
 
     // draw pixel with color, assuming color is a pointer to GLubyte array of at least size 3
     bool drawPixel(point p, GLubyte* color);
-    bool drawPixel(uint32_t ind, GLubyte* color);
+    bool drawPixel(int ind, GLubyte* color);
+
+    void drawSquare(point p, int r, GLubyte* color) {
+        int x = (int) (p.x / lengthPerPixel);
+        int y = (int) (p.y / lengthPerPixel);
+        int hr = r / 2;
+
+        for (int _x = -hr; _x < hr; _x++) {
+            for (int _y = -hr; _y < hr; _y++) {
+                drawPixel(3 * ((y + _y) * width + x + _x), color);
+            }
+        }
+    }
 public:
     GLubyte* renderWindow = nullptr;
-    Universe(int width, int height) : width(width), height(height) {
+    Universe(int width, int height, double trueWidth) : width(width), height(height) {
+        lengthPerPixel = trueWidth / width;
+
         srand(rand() ^ (uint16_t) time(NULL));
 
         root = new body{
             {-1, -1},
-            {{0, 0}, {(double) width, (double) height}},
+            {{0, 0}, {trueWidth, trueWidth}},
             0, {nullptr}
         };
 
@@ -107,10 +82,10 @@ public:
     // bit unclean to have both simulation and rendering code in the same class
     void resizeWindow(int width, int height);
     GLubyte*& snapshot(snapshotConfig config = {});
-    // casting only at end of operation leads to incorrect result for some reason
-    uint32_t toRenderGrid(point p) { return ((uint32_t) p.x + (uint32_t) p.y * width) * 3; }
+    int toRenderGrid(point p) { return 3 * ((int) (p.x / lengthPerPixel) + (int) (p.y / lengthPerPixel) * width); }
+    pointi toRenderGridCoords(point p) { return {(int) (p.x / lengthPerPixel), (int) (p.y / lengthPerPixel)}; }
 
-    void registerStar(point pos, double mass) { _registerStar(root, {pos, mass}); }
+    void registerStar(point pos, double mass, point vel = {0, 0}) { _registerStar(root, {pos, mass, {0, 0}, vel}); }
     void traverse(const std::function<bool(body*, int)>& foreach) { _traverse(root, foreach, 0); }
     void step();
 
