@@ -18,7 +18,14 @@ int main() {
     universe.registerStar({50, 200}, 1);
     universe.registerStar({190, 80}, 1);
     universe.registerStar({300, 220}, 1);
-    universe.registerStar({350, 680}, 1);
+    universe.registerStar({350, 680}, 50);
+
+    //universe.registerStar({300, 300}, 10);
+    //universe.registerStar({100, 100}, 0.5);
+    //universe.registerStar({300, 100}, 0.5);
+    //universe.registerStar({600, 200}, 1);
+    //universe.registerStar({200, 600}, 1);
+    //universe.registerStar({600, 600}, 1);
 
     GLuint imgTex;
     glGenTextures(1, &imgTex);
@@ -27,28 +34,47 @@ int main() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+    //std::cout << "hello world" << std::endl;
+    //printf("%d", ((466.667 + 466.67 * 800.0) * 3.0));
+    std::cout << ((466.667 + 466.67 * 800.0) * 3.0) << std::endl;
+    std::cout << (uint32_t) (466.667 + 466.67 * 800.0) * 3 << std::endl;
+
+    bool debug = false;
     bool drawQuadBounds = false;
+    bool drawSameDepthOnly = false;
     int depth = -1;
     while (red.update()) {
         ImGui::Begin("Debug");
-        ImGui::Checkbox("Draw quadtree bounds", &drawQuadBounds);
+        ImGui::Checkbox("Debug", &debug);
 
-        if (drawQuadBounds) {
+        if (debug) {
+            ImGui::Text("Depth: %i", depth);
+            ImGui::SameLine();
             if (ImGui::Button("^")) depth++;
             ImGui::SameLine();
             if (ImGui::Button("v")) depth--;
 
             if (depth < -1) depth = -1;
 
-            ImGui::Text("Depth: %i", depth);
-            ImGui::SameLine();
+            ImGui::Checkbox("Only Show Matching Depth", &drawSameDepthOnly);
+
+            ImGui::Checkbox("Draw Quad Bounds", &drawQuadBounds);
+            if (ImGui::Button("Print all visible bodies")) {
+                universe.traverse([depth] (body* b, int d) {
+                    if (depth == -1 || d == depth) {
+                        std::cout << (b->isLeaf() ? "Leaf" : "External") << " body (" << b->pos.x << ", " << b->pos.y << ") has mass " << b->mass << std::endl;
+                    }
+                });
+                std::cout << std::endl;
+            }
+
+            ImGuiIO& io = ImGui::GetIO();
+            if (ImGui::IsMousePosValid()) ImGui::Text("Mouse pos: (%g, %g)", io.MousePos.x, io.MousePos.y);
+            else ImGui::Text("Mouse pos: <INVALID>");
         }
         ImGui::End();
 
-        snapshotConfig config = {
-            {drawQuadBounds, depth}
-        };
-
+        snapshotConfig config = {debug, depth, drawQuadBounds, drawSameDepthOnly};
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, universe.snapshot(config));
         ImGui::GetBackgroundDrawList()->AddImage((ImTextureID) imgTex, ImVec2(0, 0), ImVec2(width, height));
 

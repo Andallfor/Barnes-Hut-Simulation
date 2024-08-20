@@ -34,19 +34,19 @@ private:
     friend LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 public:
+    bool initialize(int width, int height);
+    bool update();
+    void render();
+    void cleanup();
+
     // https://stackoverflow.com/questions/1008019/how-do-you-implement-the-singleton-design-pattern
     static Renderer& getInstance() {
         static Renderer instance;
         return instance;
     }
 
-    Renderer(Renderer const &) = delete;
-    Renderer& operator=(const Renderer &) = delete;
-
-    bool initialize(int width, int height);
-    bool update();
-    void render();
-    void cleanup();
+    Renderer(Renderer const&) = delete;
+    Renderer& operator=(const Renderer&) = delete;
 };
 
 #endif

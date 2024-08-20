@@ -13,17 +13,12 @@
 */
 
 struct snapshotConfig {
-    struct {
-        bool show = false;
-        int depth = -1;
-    } quad;
+    bool debug = false;
+    int depth = -1;
+    bool showQuad = false;
+    bool drawSameDepthOnly = false;
 
-    // check all values :skull:
-    // might be easier to check if the actual memory contents are equal?
-    bool operator==(snapshotConfig con) {
-        return con.quad.show == this->quad.show && con.quad.depth == this->quad.depth;
-    }
-
+    bool operator==(snapshotConfig con) { return std::memcmp(this, &con, sizeof(snapshotConfig)) == 0; }
     bool operator!=(snapshotConfig con) { return !(*this == con); }
 };
 
@@ -72,7 +67,8 @@ struct body {
 
         point step = { (bounds.ur.x - bounds.ll.x) / 2.0, (bounds.ur.y - bounds.ll.y) / 2.0 };
         point anchor = { (double) (ind % 2), (double) (ind / 2) };
-        children[ind] = new body{{0, 0},
+        children[ind] = new body{
+            {-1, -1},
             {{step.x * anchor.x + bounds.ll.x, step.y * anchor.y + bounds.ll.y},
             {step.x + step.x * anchor.x + bounds.ll.x, step.y + step.y * anchor.y + bounds.ll.y}},
             0, {nullptr}
@@ -91,6 +87,8 @@ private:
 
     GLubyte black[3] = { 0, 0, 0 };
     GLubyte white[3] = { 255, 255, 255 };
+    GLubyte red[3] = {255, 0, 0};
+    GLubyte green[3] = {0, 255, 0};
 
     body* root = nullptr;
 
@@ -99,7 +97,7 @@ private:
 
     void _registerStar(body* node, strippedBody star, bool affectCoM = true);
 
-    void traverse(body* node, const std::function<void(body*, int)>& foreach, int depth = 0);
+    void _traverse(body* node, const std::function<void(body*, int)>& foreach, int depth = 0);
 
     // draw pixel with color, assuming color is a pointer to GLubyte array of at least size 3
     bool drawPixel(point p, GLubyte* color);
@@ -110,7 +108,7 @@ public:
         srand(rand() ^ (uint16_t) time(NULL));
 
         root = new body{
-            {(double) width / 2, (double) height / 2},
+            {-1, -1},
             {{0, 0}, {(double) width, (double) height}},
             0, {nullptr}
         };
@@ -118,13 +116,15 @@ public:
         resizeWindow(width, height);
     }
 
-    // TODO: consider moving drawing functions into seperate class
+    // TODO: consider moving drawing functions into separate class
     // bit unclean to have both simulation and rendering code in the same class
     void resizeWindow(int width, int height);
     GLubyte*& snapshot(snapshotConfig config = {});
-    uint32_t toRenderGrid(point p) { return (uint32_t) (p.x + p.y * width) * 3; }
+    // casting only at end of operation leads to incorrect result for some reason
+    uint32_t toRenderGrid(point p) { return ((uint32_t) p.x + (uint32_t) p.y * width) * 3; }
 
     void registerStar(point pos, double mass) { _registerStar(root, {pos, mass}); }
+    void traverse(const std::function<void(body*, int)>& foreach) { _traverse(root, foreach, 0); }
     void step();
 
     Universe(Universe const&) = delete;
