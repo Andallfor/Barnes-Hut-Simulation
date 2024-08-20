@@ -22,28 +22,25 @@ struct snapshotConfig {
     bool operator!=(snapshotConfig con) { return !(*this == con); }
 };
 
-struct point {
-    double x, y;
-};
-
-struct pointui {
-    uint16_t x, y;
-};
+struct point { double x, y; };
+struct pointui { uint16_t x, y; };
 
 struct quad {
     point ll, ur;
-
-    bool contains(point p) {
-        return p.x >= ll.x && p.y >= ll.y && p.x <= ur.x && p.y <= ur.y;
-    }
+    bool contains(point p) { return p.x >= ll.x && p.y >= ll.y && p.x <= ur.x && p.y <= ur.y; }
 };
 
 struct strippedBody {
     point pos;
     double mass;
+    point acceleration = { 0, 0 };
+    point velocity = { 0, 0 };
 };
 
 struct body {
+    static constexpr double DELTA = 0;
+    static constexpr double G = 4.3009172706e-03;
+
     point pos; // if external node, true position of body. otherwise com
     quad bounds;
     double mass; // mass of 0 means that it is empty
@@ -56,28 +53,18 @@ struct body {
     */
     struct body* children[4] = { nullptr };
 
-    body* getChild(int ind) {
-        if (ind < 0 || ind >= 4) {
-            std::cerr << "-_-" << std::endl;
-            return nullptr;
-        }
+    point acceleration = {0, 0};
+    point velocity = {0, 0};
 
-        // child are lazily created (only when accessed), so may need to init here
-        if (children[ind]) return children[ind];
-
-        point step = { (bounds.ur.x - bounds.ll.x) / 2.0, (bounds.ur.y - bounds.ll.y) / 2.0 };
-        point anchor = { (double) (ind % 2), (double) (ind / 2) };
-        children[ind] = new body{
-            {-1, -1},
-            {{step.x * anchor.x + bounds.ll.x, step.y * anchor.y + bounds.ll.y},
-            {step.x + step.x * anchor.x + bounds.ll.x, step.y + step.y * anchor.y + bounds.ll.y}},
-            0, {nullptr}
-        };
-
-        return children[ind];
-    }
+    body* getChild(int ind);
 
     bool isLeaf() { return !children[0] && !children[1] && !children[2] && !children[3]; }
+
+    double distTo(body* b) { return std::sqrt((b->pos.x - pos.x) * (b->pos.x - pos.x) +
+                                              (b->pos.y - pos.y) * (b->pos.y - pos.y)); }
+
+    void applyForceFrom(body* b, double d);
+    void applyForceFrom(body* b) { applyForceFrom(b, distTo(b)); }
 };
 
 class Universe {
@@ -97,7 +84,7 @@ private:
 
     void _registerStar(body* node, strippedBody star, bool affectCoM = true);
 
-    void _traverse(body* node, const std::function<void(body*, int)>& foreach, int depth = 0);
+    void _traverse(body* node, const std::function<bool(body*, int)>& foreach, int depth = 0);
 
     // draw pixel with color, assuming color is a pointer to GLubyte array of at least size 3
     bool drawPixel(point p, GLubyte* color);
@@ -124,7 +111,7 @@ public:
     uint32_t toRenderGrid(point p) { return ((uint32_t) p.x + (uint32_t) p.y * width) * 3; }
 
     void registerStar(point pos, double mass) { _registerStar(root, {pos, mass}); }
-    void traverse(const std::function<void(body*, int)>& foreach) { _traverse(root, foreach, 0); }
+    void traverse(const std::function<bool(body*, int)>& foreach) { _traverse(root, foreach, 0); }
     void step();
 
     Universe(Universe const&) = delete;
