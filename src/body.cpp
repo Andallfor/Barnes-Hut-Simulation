@@ -21,6 +21,8 @@ body* body::getChild(int ind) {
         0, {nullptr}
     };
 
+    children[ind]->parent = this;
+
     return children[ind];
 }
 
@@ -31,6 +33,6 @@ void body::applyForceFrom(body* b, double r) {
     double fx = force * std::cos(theta);
     double fy = force * std::sin(theta);
 
-    accel.past = accel.future;
-    accel.future = {fx / mass, fy / mass};
+    accel.future.x += fx / mass;
+    accel.future.y += fy / mass;
 }

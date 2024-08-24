@@ -70,8 +70,9 @@ public:
         srand(rand() ^ (uint16_t) time(NULL));
 
         root = new body{
-            {-1, -1},
-            {{0, 0}, {trueWidth, trueWidth}},
+            {0, 0},
+            // center of viewport is (tw / 2, tw / 2)
+            {{-trueWidth / 2.0, -trueWidth / 2.0}, {1.5 * trueWidth, 1.5 * trueWidth}},
             0, {nullptr}
         };
 
@@ -85,9 +86,11 @@ public:
     int toRenderGrid(point p) { return 3 * ((int) (p.x / lengthPerPixel) + (int) (p.y / lengthPerPixel) * width); }
     pointi toRenderGridCoords(point p) { return {(int) (p.x / lengthPerPixel), (int) (p.y / lengthPerPixel)}; }
 
-    void registerStar(point pos, double mass, point vel = {0, 0}) { _registerStar(root, {pos, mass, {0, 0}, vel}); }
+    void registerStar(point pos, double mass, point vel = {0, 0}) { _registerStar(root, {mass, pos, {0, 0}, vel}); }
     void traverse(const std::function<bool(body*, int)>& foreach) { _traverse(root, foreach, 0); }
     void step();
+
+    void registerGalaxy(point center, int amt, double coreMass, point vel = {0, 0});
 
     Universe(Universe const&) = delete;
     Universe& operator=(const Universe&) = delete;

@@ -10,9 +10,10 @@ int main() {
 
     if (!red.initialize(width, height)) return 1;
 
-    Universe universe(width, height, 400);
-    universe.registerStar({230, 230}, 1, {std::sqrt(body::G * 50000 / 20), 0});
-    universe.registerStar({230, 210}, 50000, {0, 0});
+    Universe universe(width, height, 800);
+    universe.registerGalaxy({300, 500}, 200, 10e6);
+    //universe.registerStar({230, 290}, 1, {std::sqrt(body::G * 10e6 / 80), 0});
+    //universe.registerStar({230, 210}, 10e6, {0, 0});
 
     //universe.registerStar({190, 210}, 25000, {0, -1}); // remove for stable orbit
 
@@ -50,12 +51,31 @@ int main() {
             if (ImGui::Button("Print all visible bodies")) {
                 universe.traverse([depth] (body* b, int d) -> bool {
                     if (depth == -1 || d == depth) {
-                        std::cout << (b->isLeaf() ? "Leaf" : "External") << " body (" << b->pos.x << ", " << b->pos.y << ") has mass " << b->mass << std::endl;
+                        std::cout << (b->isLeaf() ? "Leaf" : "Internal")
+                                  << " body (" << b->pos.x << ", " << b->pos.y << ") has mass "
+                                  << b->mass
+                                  << " with bounds ({" << b->bounds.ll.x << ", " << b->bounds.ll.y
+                                  << "}, {" << b->bounds.ur.x << ", " << b->bounds.ur.y << "})"
+                                  << std::endl;
                     }
 
                     return true;
                 });
                 std::cout << std::endl;
+            }
+
+            if (ImGui::Button("Check Parent")) {
+                universe.traverse([] (body* b, int) -> bool {
+                    for (int i = 0; i < 4; i++) {
+                        if (b->children[i]) {
+                            if (b->children[i]->parent != b) std::cout << "Fail" << std::endl;
+                        }
+                    }
+
+                    return true;
+                });
+
+                std::cout << "Finished Check" << std::endl;
             }
 
             if (ImGui::Button("Step")) universe.step();

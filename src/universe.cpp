@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <vector>
 #include <functional>
+#include <random>
 #include "Universe.h"
 
 void Universe::destroyStars(body* node) {
@@ -28,21 +29,11 @@ void Universe::_registerStar(body* node, strippedBody star, bool affectCoM) {
             if (affectCoM) {
                 // edge case for root node, which starts with no mass
                 if (node->mass == 0) node->update(star);
-                else {
-                    double m = node->mass;
-                    double mn = m + star.mass;
-                    double cx = node->pos.x * m;
-                    double cy = node->pos.y * m;
-
-                    // https://www.desmos.com/calculator/4aoyrlkt7x (im bad at math)
-                    node->pos.x += (star.mass * (star.pos.x * m - cx)) / (m * mn);
-                    node->pos.y += (star.mass * (star.pos.y * m - cy)) / (m * mn);
-                    node->mass = mn;
-                }
+                else node->incrementCoM(star.pos, star.mass);
             }
 
             // child is empty, replace it with the star
-            if (child->mass == 0) child->update(star);    
+            if (child->mass == 0) child->update(star);
             else { // recurse!
                 if (child->isLeaf()) { // something is here and is leaf node -> therefore must be a singular body
                     // new star should either be the same or a level below the child node
@@ -60,7 +51,6 @@ void Universe::_registerStar(body* node, strippedBody star, bool affectCoM) {
 }
 
 void Universe::step() {
-    // TODO: optimize!
     // TODO: reset all colored pixels from snapshot()
     resizeWindow(width, height);
 
@@ -99,8 +89,17 @@ void Universe::step() {
     }, 0);
 
     // apply the acceleration (and velocity)
-    std::vector<strippedBody> copy;
-    _traverse(root, [&copy] (body* b, int) -> bool {
+    // this can be collapsed into the above traversal but is kept out for readability and cleanliness
+    // (this does not need to be super optimized)
+    struct changePropogation {
+        body* parent;
+        double mass;
+        point pos;
+    };
+
+    std::vector<strippedBody> nodeChange;
+    std::vector<changePropogation> change;
+    _traverse(root, [this, &nodeChange, &change] (body* b, int) -> bool {
         if (b->mass == 0 || !b->isLeaf()) return true;
 
         // leapfrog finite diff aprox for t + 1
@@ -110,21 +109,54 @@ void Universe::step() {
 
         b->velocity.x += 0.5 * (b->accel.future.x + b->accel.past.x) * dt;
         b->velocity.y += 0.5 * (b->accel.future.y + b->accel.past.y) * dt;
-        
-        copy.push_back(b->strip());
+
+        b->accel.past = b->accel.future;
+        b->accel.future = {0, 0};
+
+        // if star moves out of current quad bounds
+        if (!b->bounds.contains(b->pos)) {
+            // all bodies are leaf nodes which do not have children
+            // therefore these bodies can easily be removed and reintroduced
+            // it would be fastest to search for position to insert into upwards but that functionality
+            // is not currently supported
+            strippedBody sb = b->strip();
+
+            // remove effect from center of mass of parent
+            // OPTIMIZATION: just remove (then add) the effect of the change in position - need to find the
+            // // point of connection of where the node tree between the old and new bounds
+            body* parent = b->parent;
+            while (parent != nullptr) {
+                // https://www.desmos.com/calculator/kpurqi6hmd
+                point p = b->pos;
+                double m = parent->mass;
+                double n = b->mass;
+                point u = {parent->pos.x * m - (n * p.x), parent->pos.y * m - (n * p.y)};
+
+                point out = {
+                    n * (p.x * (m - n) - u.x) / ((m - n) * m),
+                    n * (p.y * (m - n) - u.y) / ((m - n) * m)
+                };
+
+                change.push_back({parent, sb.mass, out});
+                parent = parent->parent;
+            }
+
+            b->mass = 0; // mass 0 denotes that this is not a star, irrespective of pos/vel/accel
+            nodeChange.push_back(sb);
+        }
 
         return true;
     });
 
-    // restructure tree (i will optimize this later i swear)
-    destroyStars(root);
-    root = new body {
-        {-1, -1},
-        {{0, 0}, {(double) width, (double) height}},
-        0, {nullptr}
-    };
+    // propogate change
+    for (std::vector<changePropogation>::const_iterator it = change.cbegin(); it != change.cend(); it++) {
+        it->parent->mass -= it->mass;
+        it->parent->pos.x += it->pos.x;
+        it->parent->pos.y += it->pos.y;
+        if (it->parent->mass <= 1e-6) it->parent->mass = 0;
+    }
 
-    for (std::vector<strippedBody>::iterator it = copy.begin(); it != copy.end(); it++) {
+    for (std::vector<strippedBody>::const_iterator it = nodeChange.cbegin(); it != nodeChange.cend(); it++) {
         _registerStar(root, *it);
     }
 }
@@ -140,12 +172,14 @@ void Universe::resizeWindow(int w, int h) {
 
 GLubyte* & Universe::snapshot(snapshotConfig config) {
     // config changes, redraw everything
-    // unoptimized but should be fine since this is just for debugging and should not be changing without
-    // user input
+    // unoptimized but should be fine since this is just for debugging and should not be changing without user input
     if (config != prevConfig) resizeWindow(width, height);
     prevConfig = config;
 
     _traverse(root, [this, config] (body* b, int depth) -> bool {
+        pointi _p = toRenderGridCoords(b->pos);
+        //if (_p.x < 0 || _p.y < 0 || _p.x > width || _p.y > height) return true;
+
         if (config.debug) {
             // quad bound drawing
             if (config.showQuad && (config.depth == -1 || config.depth == depth)) {
@@ -165,12 +199,13 @@ GLubyte* & Universe::snapshot(snapshotConfig config) {
                 }
             }
 
+            if (b->mass == 0) return true;
+
             // draw point
             GLubyte* color = (b->isLeaf()) ? green : red;
-            if (b->mass == 5000) color = white;
             if (!config.drawSameDepthOnly || (config.depth == -1 || config.depth == depth)) drawSquare(b->pos, 10, color);
         } else {
-            if (!b->isLeaf()) return true;
+            if (b->mass == 0 || !b->isLeaf()) return true;
             drawPixel(b->pos, white);
         }
 
@@ -180,8 +215,34 @@ GLubyte* & Universe::snapshot(snapshotConfig config) {
     return renderWindow;
 }
 
+void Universe::registerGalaxy(point center, int amt, double coreMass, point coreVel) {
+    // ngl im basically guessing on all of these values idk anything about galactic properties
+
+    point massRange = {2.0, 4}; // https://en.wikipedia.org/wiki/Stellar_mass;
+    registerStar(center, coreMass, coreVel);
+
+    for (int i = 0; i < amt; i++) {
+        double theta = (rand() % 1000) / 1000.0 * 2.0 * 3.14159;
+        double radius = (rand() % 1000) / 1000.0 * 100 + 20;
+        double mass = (rand() % 1000) / 1000.0 * (massRange.y - massRange.x) + massRange.x;
+
+        point pos = {
+            center.x + std::cos(theta) * radius,
+            center.y + std::sin(theta) * radius
+        };
+
+        double v = std::sqrt(body::G * coreMass / radius);
+        point vel = {
+            v * std::sin(theta),
+            -v * std::cos(theta)
+        };
+
+        registerStar(pos, mass, vel);
+    }
+}
+
 void Universe::_traverse(body* node, const std::function<bool(body*, int)>& foreach, int _depth) {
-    if (!node) return;
+    if (!node || node->mass == 0) return;
 
     // returning false means to end execution of current branch
     if (!foreach(node, _depth)) return;
