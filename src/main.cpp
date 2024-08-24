@@ -11,7 +11,7 @@ int main() {
     if (!red.initialize(width, height)) return 1;
 
     Universe universe(width, height, 800);
-    universe.registerGalaxy({300, 500}, 200, 10e6);
+    universe.registerGalaxy({300, 500}, 1000, 10e6);
     //universe.registerStar({230, 290}, 1, {std::sqrt(body::G * 10e6 / 80), 0});
     //universe.registerStar({230, 210}, 10e6, {0, 0});
 
