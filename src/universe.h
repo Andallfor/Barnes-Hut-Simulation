@@ -114,7 +114,7 @@ public:
     void traverse(const std::function<bool(body*, int)>& foreach) { _traverse(root, foreach, 0); }
     void step();
 
-    void registerGalaxy(point center, int amt, double coreMass, point vel = {0, 0}, point radius = {100, 20});
+    void registerGalaxy(point center, int amt, double coreMass, point coreVel, point radius);
 
     Universe(Universe const&) = delete;
     Universe& operator=(const Universe&) = delete;

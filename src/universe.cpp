@@ -234,10 +234,20 @@ void Universe::registerGalaxy(point center, int amt, double coreMass, point core
     point massRange = {2.0, 4}; // https://en.wikipedia.org/wiki/Stellar_mass;
     registerStar(center, coreMass, coreVel);
 
-    for (int i = 0; i < amt; i++) {
-        double theta = (rand() % 1000) / 1000.0 * 2.0 * 3.14159;
-        double r = (rand() % 1000) / 1000.0 * radius.x + radius.y;
-        double mass = (rand() % 1000) / 1000.0 * (massRange.y - massRange.x) + massRange.x;
+    // each star should take up at most 0.5 units^2
+    double maxCapacity = ((3.14159 * radius.y * radius.y) - (3.14159 * radius.x * radius.x)) / 0.5;
+    if (amt > maxCapacity) {
+        amt = (int) maxCapacity;
+        std::cout << "WARNING: Trying to add more points than radius area can sustain (" << amt << ")\n";
+    }
+
+    // https://stackoverflow.com/questions/28567166/uniformly-distribute-x-points-inside-a-circle
+    double b = std::round(0 * std::sqrt(amt));
+    double phi = 0.5 * (std::sqrt(5) + 1.0);
+    for (double k = 4; k < amt + 1; k++) {
+        double r = (k > amt - b) ? 1.0 : (std::sqrt(k - 0.5) / (std::sqrt(amt - (b + 1.0) / 2.0)));
+        r = r * radius.y + radius.x;
+        double theta = 2.0 * 3.14159 * k / (phi * phi);
 
         point pos = {
             center.x + std::cos(theta) * r,
@@ -250,6 +260,7 @@ void Universe::registerGalaxy(point center, int amt, double coreMass, point core
             -v * std::cos(theta) + coreVel.y
         };
 
+        double mass = (rand() % 1000) / 1000.0 * (massRange.y - massRange.x) + massRange.x;
         registerStar(pos, mass, vel);
     }
 }
