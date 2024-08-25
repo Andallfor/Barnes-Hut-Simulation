@@ -70,7 +70,7 @@ struct body {
     void moveCoM(point delta, double m);
 
     void notifyChildRemoval(point p, double m, const std::function<bool(body*)>& condition);
-    //void notifyChildMovement(body* node, point p, double m, std::function<bool(body*)>& condition);
+    void notifyChildMovement(point delta, double m, const std::function<bool(body*)>& condition);
 };
 
 #endif

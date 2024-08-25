@@ -74,4 +74,9 @@ void body::notifyChildRemoval(point p, double m, const std::function<bool(body*)
     parent->notifyChildRemoval(p, m, condition);
 }
 
-//void notifyChildMovement(body* node, point p, double m, std::function<bool(body*)>& condition);
+void body::notifyChildMovement(point delta, double m, const std::function<bool(body*)>& condition) {
+    if (condition(this)) return;
+
+    moveCoM(delta, m);
+    parent->notifyChildMovement(delta, m, condition);
+}

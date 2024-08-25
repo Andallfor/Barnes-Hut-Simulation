@@ -105,6 +105,8 @@ void Universe::step() {
         body* b = registeredBodies[ind];
         if (!b) continue;
 
+        point prev = b->pos;
+
         // hide previous position
         drawPixel(b->pos, black);
 
@@ -142,19 +144,23 @@ void Universe::step() {
 
         // if star moves out of current quad bounds
         if (!b->bounds.contains(b->pos)) {
-            // all bodies are leaf nodes which do not have children
+            // TODO all bodies are leaf nodes which do not have children
             // therefore these bodies can easily be removed and reintroduced
             // it would be fastest to search for position to insert into upwards but that functionality
             // is not currently supported
             strippedBody sb = b->strip();
 
             // remove self from parents CoM as well
-            b->parent->notifyChildRemoval(b->pos, b->mass, [] (body* parent) -> bool {return parent == nullptr; });
+            b->parent->notifyChildRemoval(b->pos, b->mass, [] (body* parent) -> bool {return parent == nullptr;});
             registeredBodies[b->index] = nullptr;
             b->mass = 0; // mass 0 denotes that this is not a star, irrespective of pos/vel/accel
             b->index = -1;
 
             registerStar(sb);
+        } else {
+            // TODO maybe some variation of s/d can be used here to determine if the movement is large enough to affect parent CoM?
+            point delta = {b->pos.x - prev.x, b->pos.y - prev.y};
+            b->parent->notifyChildMovement(delta, b->mass, [] (body* parent) -> bool {return parent == nullptr;});
         }
     }
 }

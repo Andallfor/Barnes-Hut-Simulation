@@ -76,7 +76,7 @@ private:
         if (verify) {
             size_t s = registeredBodies.capacity();
             // resize because we use operator[] to access - reserve does not immediantely increase size of array
-            if (b->index >= s) registeredBodies.resize(b->index * 2);
+            if (b->index >= s) registeredBodies.resize((size_t) b->index * 2);
         }
 
         registeredBodies[b->index] = b;
