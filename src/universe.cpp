@@ -25,7 +25,8 @@ void Universe::_destroyChild(body* parent) {
 
 void Universe::_registerStar(std::queue<recursionState>* states) {
     // https://stackoverflow.com/questions/8970500/visit-a-tree-or-graph-structure-using-tail-recursion
-    // though im not sure how much it actually decreases stack size
+    // in retrospect uneeded as the solution to stack size was preventing bodies from being too close to each other
+    // but something something sunk cost fallacy
     if (states->empty()) return;
 
     recursionState state = states->front();
@@ -41,13 +42,17 @@ void Universe::_registerStar(std::queue<recursionState>* states) {
             }
 
             // child is empty, replace it with the star
-            if (child->mass == 0) child->update(state.star);
-            else {
+            if (child->mass == 0) {
+                child->update(state.star);
+                registerToBodyIndex(child);
+            } else {
                 if (child->isLeaf()) {
                     // something is here and is leaf node -> therefore must be a singular body
-                    // new star should either be the same or a level below the child node
                     // which means the child node then needs to become an internal node
+                    // and have the new star and itself as children (not necessarily direct children)
                     states->push({child, child->strip(), false});
+                    // remove this node from registeredBodies (to be readded in if statement above)
+                    child->index = -1;
                 }
                 // dont need to reinit everything
                 state.node = child;
@@ -62,12 +67,14 @@ void Universe::_registerStar(std::queue<recursionState>* states) {
 }
 
 void Universe::step() {
+    if (registeredBodies.size() == 0) return;
+
     // TODO: reset all colored pixels from snapshot()
     resizeWindow(width, height);
 
-    _traverse(root, [this] (body* b, int) -> bool {
-        // this loop looks for all bodies
-        if (b->mass == 0 || !b->isLeaf()) return true;
+    for (int ind = 0; ind < bodyIndex; ind++) {
+        body* b = registeredBodies[ind];
+        if (!b) continue;
 
         // calc forces
         _traverse(root, [this, b] (body* actor, int) -> bool {
@@ -95,9 +102,7 @@ void Universe::step() {
 
             return true;
         });
-
-        return true;
-    }, 0);
+    }
 
     // apply the acceleration (and velocity)
     // this can be collapsed into the above traversal but is kept out for readability and cleanliness
@@ -110,11 +115,12 @@ void Universe::step() {
 
     std::vector<strippedBody> nodeChange;
     std::vector<changePropogation> change;
-    _traverse(root, [this, &nodeChange, &change] (body* b, int) -> bool {
-        if (b->mass == 0 || !b->isLeaf()) return true;
+    for (int ind = 0; ind < bodyIndex; ind++) {
+        body* b = registeredBodies[ind];
+        if (!b) continue;
 
-        // leapfrog finite diff aprox for t + 1
-        double dt = 0.01;
+        // leapfrog finite diff approx for t + 1
+        double dt = 0.01; // if inner ring starts pulsating in and out, decrease t
         b->pos.x += b->velocity.x * dt + 0.5 * b->accel.past.x * dt * dt;
         b->pos.y += b->velocity.y * dt + 0.5 * b->accel.past.y * dt * dt;
 
@@ -123,6 +129,23 @@ void Universe::step() {
 
         b->accel.past = b->accel.future;
         b->accel.future = {0, 0};
+
+        // out of bounds, remove
+        if (!(root->bounds.contains(b->pos))) {
+            registeredBodies[b->index] = nullptr;
+            for (int i = 0; i < 4; i++) {
+                if (b->parent->children[i] == b) {
+                    b->parent->children[i] = nullptr;
+                    break;
+                }
+            }
+
+            // remove influence of this node on parent
+            b->parent->notifyChildRemoval(b->pos, b->mass, [] (body* parent) -> bool {return parent == nullptr; });
+
+            delete b;
+            continue;
+        }
 
         // TODO: need to replace current CoM calculation system as it doesnt update com when the body moves within a quad
 
@@ -134,32 +157,15 @@ void Universe::step() {
             // is not currently supported
             strippedBody sb = b->strip();
 
-            // remove effect from center of mass of parent
-            // OPTIMIZATION: just remove (then add) the effect of the change in position - need to find the
-            // // point of connection of where the node tree between the old and new bounds
-            body* parent = b->parent;
-            while (parent != nullptr) {
-                // https://www.desmos.com/calculator/kpurqi6hmd
-                point p = b->pos;
-                double m = parent->mass;
-                double n = b->mass;
-                point u = {parent->pos.x * m - (n * p.x), parent->pos.y * m - (n * p.y)};
-
-                point out = {
-                    n * (p.x * (m - n) - u.x) / ((m - n) * m),
-                    n * (p.y * (m - n) - u.y) / ((m - n) * m)
-                };
-
-                change.push_back({parent, sb.mass, out});
-                parent = parent->parent;
-            }
+            // remove self from parents CoM as well
+            b->parent->notifyChildRemoval(b->pos, b->mass, [] (body* parent) -> bool {return parent == nullptr;});
 
             b->mass = 0; // mass 0 denotes that this is not a star, irrespective of pos/vel/accel
+            registeredBodies[b->index] = nullptr;
+            b->index = -1;
             nodeChange.push_back(sb);
         }
-
-        return true;
-    });
+    }
 
     // propogate change
     for (std::vector<changePropogation>::const_iterator it = change.cbegin(); it != change.cend(); it++) {

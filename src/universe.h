@@ -47,11 +47,12 @@ private:
     GLubyte green[3] = {0, 255, 0};
 
     body* root = nullptr;
+    std::vector<body*> registeredBodies;
+    int bodyIndex = 0;
 
     void destroyStars(body* root);
     void _destroyChild(body* parent);
 
-    //void _registerStar(body* node, strippedBody star, bool affectCoM = true, int depth = 0);
     void _registerStar(std::queue<recursionState>* states);
 
     void _traverse(body* node, const std::function<bool(body*, int)>& foreach, int depth = 0);
@@ -71,6 +72,16 @@ private:
             }
         }
     }
+
+    void registerToBodyIndex(body* b, bool verify = true) {
+        if (verify) {
+            size_t s = registeredBodies.capacity();
+            // resize because we use operator[] to access - reserve does not immediantely increase size of array
+            if (b->index >= s) registeredBodies.resize(b->index * 2);
+        }
+
+        registeredBodies[b->index] = b;
+    }
 public:
     GLubyte* renderWindow = nullptr;
     Universe(int width, int height, double trueWidth) : width(width), height(height) {
@@ -84,6 +95,8 @@ public:
             {{-trueWidth / 2.0, -trueWidth / 2.0}, {1.5 * trueWidth, 1.5 * trueWidth}},
             0, {nullptr}
         };
+
+        registeredBodies.resize(100);
 
         resizeWindow(width, height);
     }
@@ -108,7 +121,7 @@ public:
     }
 
     void registerStar(point pos, double mass, point vel = {0, 0}) {
-        registerStar({mass, pos, {{0, 0}, {0, 0}}, vel});
+        registerStar({mass, pos, {{0, 0}, {0, 0}}, vel, bodyIndex++});
     }
 
     void traverse(const std::function<bool(body*, int)>& foreach) { _traverse(root, foreach, 0); }

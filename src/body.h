@@ -2,6 +2,7 @@
 #define BODY_H
 
 #include <cmath>
+#include <functional>
 #include "point.h"
 
 struct strippedBody {
@@ -9,6 +10,7 @@ struct strippedBody {
     point pos;
     acceleration accel = {{0, 0}, {0, 0}};
     point velocity = {0, 0};
+    int index;
 };
 
 struct body {
@@ -29,6 +31,8 @@ struct body {
     */
     struct body* children[4] = {nullptr};
     struct body* parent = nullptr;
+
+    int index = -1;
 
     // shush
     bool isLeaf() {
@@ -52,21 +56,21 @@ struct body {
     void applyForceFrom(body* b, double d);
     void applyForceFrom(body* b) { applyForceFrom(b, distTo(b)); }
 
-    strippedBody strip() { return {mass, pos, accel, velocity}; }
+    strippedBody strip() { return {mass, pos, accel, velocity, index}; }
     void update(strippedBody sb) {
         mass = sb.mass;
         pos = sb.pos;
         accel = sb.accel;
         velocity = sb.velocity;
+        index = sb.index;
     }
 
-    void incrementCoM(point p, double m) {
-        // https://www.desmos.com/calculator/4aoyrlkt7x
-        pos.x += m * (p.x * mass - pos.x * mass) / (mass * (m + mass));
-        pos.y += m * (p.y * mass - pos.y * mass) / (mass * (m + mass));
+    void incrementCoM(point p, double m);
+    void decrementCoM(point p, double m);
+    void moveCoM(point delta, double m);
 
-        mass += m;
-    }
+    void notifyChildRemoval(point p, double m, const std::function<bool(body*)>& condition);
+    //void notifyChildMovement(body* node, point p, double m, std::function<bool(body*)>& condition);
 };
 
 #endif

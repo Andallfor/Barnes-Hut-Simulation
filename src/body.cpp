@@ -36,3 +36,42 @@ void body::applyForceFrom(body* b, double r) {
     accel.future.x += fx / mass;
     accel.future.y += fy / mass;
 }
+
+    // call from parent, give child position
+void body::incrementCoM(point p, double m) {
+    // https://www.desmos.com/calculator/4aoyrlkt7x
+    pos.x += m * (p.x * mass - pos.x * mass) / (mass * (m + mass));
+    pos.y += m * (p.y * mass - pos.y * mass) / (mass * (m + mass));
+
+    mass += m;
+}
+
+// call from parent, give child position
+void body::decrementCoM(point p, double m) {
+    // https://www.desmos.com/calculator/kpurqi6hmd
+    point u = {
+        pos.x * mass - (m * p.x),
+        pos.y * mass - (m * p.y)
+    };
+
+    pos.x += m * (p.x * (mass - m) - u.x) / ((mass - m) * mass);
+    pos.y += m * (p.y * (mass - m) - u.y) / ((mass - m) * mass);
+    mass -= m;
+
+    if (mass < 1e-6) mass = 0;
+}
+
+// call from parent, give child position
+void body::moveCoM(point delta, double m) {
+    pos.x += delta.x * m / mass;
+    pos.y += delta.y * m / mass;
+}
+
+void body::notifyChildRemoval(point p, double m, const std::function<bool(body*)>& condition) {
+    if (condition(this)) return;
+
+    decrementCoM(p, m);
+    parent->notifyChildRemoval(p, m, condition);
+}
+
+//void notifyChildMovement(body* node, point p, double m, std::function<bool(body*)>& condition);
