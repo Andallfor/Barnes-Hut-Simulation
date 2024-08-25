@@ -231,27 +231,32 @@ GLubyte* & Universe::snapshot(snapshotConfig config) {
 void Universe::registerGalaxy(point center, int amt, double coreMass, point coreVel, point radius) {
     // ngl im basically guessing on all of these values idk anything about galactic properties
 
-    point massRange = {2.0, 4}; // https://en.wikipedia.org/wiki/Stellar_mass;
+    point massRange = {2.0, 150};
     registerStar(center, coreMass, coreVel);
 
     // each star should take up at most 0.5 units^2
-    double maxCapacity = ((3.14159 * radius.y * radius.y) - (3.14159 * radius.x * radius.x)) / 0.5;
+    double area = (3.14159 * radius.y * radius.y) - (3.14159 * radius.x * radius.x);
+    double maxCapacity = area / 0.5;
     if (amt > maxCapacity) {
         amt = (int) maxCapacity;
         std::cout << "WARNING: Trying to add more points than radius area can sustain (" << amt << ")\n";
     }
 
+    double areaVariance = 0.2 * (area / (double) amt);
+
     // https://stackoverflow.com/questions/28567166/uniformly-distribute-x-points-inside-a-circle
-    double b = std::round(0 * std::sqrt(amt));
+    double b = std::round(2.0 * std::sqrt(amt));
     double phi = 0.5 * (std::sqrt(5) + 1.0);
     for (double k = 4; k < amt + 1; k++) {
         double r = (k > amt - b) ? 1.0 : (std::sqrt(k - 0.5) / (std::sqrt(amt - (b + 1.0) / 2.0)));
         r = r * radius.y + radius.x;
+        // stars near the core should be closer together and further away more spread out
+        r = std::pow(r, 1.0 + (rand() % 1000) / 20000.0);
         double theta = 2.0 * 3.14159 * k / (phi * phi);
 
         point pos = {
-            center.x + std::cos(theta) * r,
-            center.y + std::sin(theta) * r
+            center.x + std::cos(theta) * r + (rand() % 1000) / 1000.0 * areaVariance,
+            center.y + std::sin(theta) * r + (rand() % 1000) / 1000.0 * areaVariance
         };
 
         double v = std::sqrt(body::G * coreMass / r);

@@ -11,7 +11,7 @@ int main() {
     if (!red.initialize(width, height)) return 1;
 
     Universe* universe = new Universe(width, height, 400);
-    universe->registerGalaxy({150, 250}, 5000, 10e6, {0, 0}, {7, 100});
+    universe->registerGalaxy({150, 250}, 1000, 10e6, {0, 0}, {7, 100});
     //universe->registerGalaxy({400, 300}, 100, 10e6, {-5, 3}, {40, 7});
     //universe->registerStar({230, 290}, 1, {std::sqrt(body::G * 10e6 / 80), 0});
     //universe->registerStar({230, 210}, 10e6, {0, 0});
