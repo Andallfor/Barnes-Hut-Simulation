@@ -75,7 +75,7 @@ void Universe::step() {
 
         // calc forces
         _traverse(root, [this, b] (body* actor, int) -> bool {
-            if (actor->mass == 0 || actor == b) return true;
+            if (actor->mass == 0 || actor == b) return false;
 
             // if leaf node, manually calc force
             if (actor->isLeaf()) {

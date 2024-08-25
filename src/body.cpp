@@ -3,6 +3,8 @@
 #include <iostream>
 #include <cmath>
 
+#define USE_ATAN2_APPROX
+
 body* body::getChild(int ind) {
     if (ind < 0 || ind >= 4) {
         std::cerr << "-_-" << std::endl;
@@ -28,7 +30,20 @@ body* body::getChild(int ind) {
 
 void body::applyForceFrom(body* b, double r) {
     double force = G * (b->mass * mass) / (r * r);
+#ifndef USE_ATAN2_APPROX
     double theta = std::atan2(b->pos.y - pos.y, b->pos.x - pos.x);
+#else
+    // atan2 approx
+    double y = b->pos.y - pos.y;
+    double x = b->pos.x - pos.x;
+    // https://gist.github.com/volkansalma/2972237
+    double abs_y = std::fabs(y) + 1e-10;      // kludge to prevent 0/0 condition
+    double _r = (x - std::copysign(abs_y, x)) / (abs_y + std::fabs(x));
+    double angle = 3.14159 / 2. - std::copysign(3.14159 / 4., x);
+
+    angle += (0.1963 * _r * _r - 0.9817) * _r;
+    double theta = std::copysign(angle, y);
+#endif
 
     double fx = force * std::cos(theta);
     double fy = force * std::sin(theta);
