@@ -69,17 +69,13 @@ void Universe::_registerStar(std::queue<recursionState>* states) {
 void Universe::step() {
     if (registeredBodies.size() == 0) return;
 
-    // TODO: reset all colored pixels from snapshot()
-    resizeWindow(width, height);
-
     for (int ind = 0; ind < bodyIndex; ind++) {
         body* b = registeredBodies[ind];
         if (!b) continue;
 
         // calc forces
         _traverse(root, [this, b] (body* actor, int) -> bool {
-            // cannot be self and must have mass
-            if (actor->mass == 0 || (actor->pos.x == b->pos.x && actor->pos.y == b->pos.y)) return true;
+            if (actor->mass == 0 || actor == b) return true;
 
             // if leaf node, manually calc force
             if (actor->isLeaf()) {
@@ -105,19 +101,12 @@ void Universe::step() {
     }
 
     // apply the acceleration (and velocity)
-    // this can be collapsed into the above traversal but is kept out for readability and cleanliness
-    // (this does not need to be super optimized)
-    struct changePropogation {
-        body* parent;
-        double mass;
-        point pos;
-    };
-
-    std::vector<strippedBody> nodeChange;
-    std::vector<changePropogation> change;
     for (int ind = 0; ind < bodyIndex; ind++) {
         body* b = registeredBodies[ind];
         if (!b) continue;
+
+        // hide previous position
+        drawPixel(b->pos, black);
 
         // leapfrog finite diff approx for t + 1
         double dt = 0.01; // if inner ring starts pulsating in and out, decrease t
@@ -147,6 +136,8 @@ void Universe::step() {
             continue;
         }
 
+        drawPixel(b->pos, white);
+
         // TODO: need to replace current CoM calculation system as it doesnt update com when the body moves within a quad
 
         // if star moves out of current quad bounds
@@ -158,48 +149,44 @@ void Universe::step() {
             strippedBody sb = b->strip();
 
             // remove self from parents CoM as well
-            b->parent->notifyChildRemoval(b->pos, b->mass, [] (body* parent) -> bool {return parent == nullptr;});
-
-            b->mass = 0; // mass 0 denotes that this is not a star, irrespective of pos/vel/accel
+            b->parent->notifyChildRemoval(b->pos, b->mass, [] (body* parent) -> bool {return parent == nullptr; });
             registeredBodies[b->index] = nullptr;
+            b->mass = 0; // mass 0 denotes that this is not a star, irrespective of pos/vel/accel
             b->index = -1;
-            nodeChange.push_back(sb);
+
+            registerStar(sb);
         }
-    }
-
-    // propogate change
-    for (std::vector<changePropogation>::const_iterator it = change.cbegin(); it != change.cend(); it++) {
-        it->parent->mass -= it->mass;
-        it->parent->pos.x += it->pos.x;
-        it->parent->pos.y += it->pos.y;
-        if (it->parent->mass <= 1e-6) it->parent->mass = 0;
-    }
-
-    for (std::vector<strippedBody>::const_iterator it = nodeChange.cbegin(); it != nodeChange.cend(); it++) {
-        registerStar(*it);
     }
 }
 
-void Universe::resizeWindow(int w, int h) {
+void Universe::resizeWindow(int w, int h, bool redraw) {
     if (renderWindow) delete[] renderWindow;
 
     this->width = w;
     this->height = h;
 
     renderWindow = new GLubyte[(int) (width * height * 3)] {0};
+
+    if (redraw) {
+        for (int i = 0; i < bodyIndex; i++) {
+            if (!registeredBodies[i]) continue;
+            drawPixel(registeredBodies[i]->pos, white);
+        }
+    }
 }
 
 GLubyte* & Universe::snapshot(snapshotConfig config) {
     // config changes, redraw everything
     // unoptimized but should be fine since this is just for debugging and should not be changing without user input
     if (config != prevConfig) resizeWindow(width, height);
+    else if (config.debug) resizeWindow(width, height, false);
     prevConfig = config;
 
-    _traverse(root, [this, config] (body* b, int depth) -> bool {
-        pointi _p = toRenderGridCoords(b->pos);
-        //if (_p.x < 0 || _p.y < 0 || _p.x > width || _p.y > height) return true;
+    // normal drawing is handled by step
+    if (config.debug) {
+        _traverse(root, [this, config] (body* b, int depth) -> bool {
+            pointi _p = toRenderGridCoords(b->pos);
 
-        if (config.debug) {
             // quad bound drawing
             if (config.showQuad && (config.depth == -1 || config.depth == depth)) {
                 GLubyte* outline = (b->mass == 0) ? red : green;
@@ -223,13 +210,10 @@ GLubyte* & Universe::snapshot(snapshotConfig config) {
             // draw point
             GLubyte* color = (b->isLeaf()) ? green : red;
             if (!config.drawSameDepthOnly || (config.depth == -1 || config.depth == depth)) drawSquare(b->pos, 10, color);
-        } else {
-            if (b->mass == 0 || !b->isLeaf()) return true;
-            drawPixel(b->pos, white);
-        }
 
-        return true;
-    });
+            return true;
+        });
+    }
 
     return renderWindow;
 }

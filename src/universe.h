@@ -60,7 +60,6 @@ private:
     // draw pixel with color, assuming color is a pointer to GLubyte array of at least size 3
     bool drawPixel(point p, GLubyte* color);
     bool drawPixel(int ind, GLubyte* color);
-
     void drawSquare(point p, int r, GLubyte* color) {
         int x = (int) (p.x / lengthPerPixel);
         int y = (int) (p.y / lengthPerPixel);
@@ -101,7 +100,7 @@ public:
         resizeWindow(width, height);
     }
 
-    void resizeWindow(int width, int height);
+    void resizeWindow(int width, int height, bool redraw = true);
     GLubyte*& snapshot(snapshotConfig config = {});
     int toRenderGrid(point p) {
         pointi i = toRenderGridCoords(p);
