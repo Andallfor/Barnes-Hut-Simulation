@@ -3,6 +3,7 @@
 #include <vector>
 #include <functional>
 #include <random>
+#include <queue>
 #include "Universe.h"
 
 void Universe::destroyStars(body* node) {
@@ -22,32 +23,42 @@ void Universe::_destroyChild(body* parent) {
     delete parent;
 }
 
-void Universe::_registerStar(body* node, strippedBody star, bool affectCoM) {
+void Universe::_registerStar(std::queue<recursionState>* states) {
+    // https://stackoverflow.com/questions/8970500/visit-a-tree-or-graph-structure-using-tail-recursion
+    // though im not sure how much it actually decreases stack size
+    if (states->empty()) return;
+
+    recursionState state = states->front();
+    states->pop(); // why doesnt it return the top :(
+
     for (int i = 0; i < 4; i++) {
-        body* child = node->getChild(i);
-        if (child->bounds.contains(star.pos)) {
-            if (affectCoM) {
+        body* child = state.node->getChild(i);
+        if (child->bounds.contains(state.star.pos)) {
+            if (state.affectCoM) {
                 // edge case for root node, which starts with no mass
-                if (node->mass == 0) node->update(star);
-                else node->incrementCoM(star.pos, star.mass);
+                if (state.node->mass == 0) state.node->update(state.star);
+                else state.node->incrementCoM(state.star.pos, state.star.mass);
             }
 
             // child is empty, replace it with the star
-            if (child->mass == 0) child->update(star);
-            else { // recurse!
-                if (child->isLeaf()) { // something is here and is leaf node -> therefore must be a singular body
+            if (child->mass == 0) child->update(state.star);
+            else {
+                if (child->isLeaf()) {
+                    // something is here and is leaf node -> therefore must be a singular body
                     // new star should either be the same or a level below the child node
                     // which means the child node then needs to become an internal node
-                    _registerStar(child, child->strip(), false);
+                    states->push({child, child->strip(), false});
                 }
-                _registerStar(child, star);
+                // dont need to reinit everything
+                state.node = child;
+                states->push(state);
             }
 
-            return;
+            break;
         }
     }
 
-    std::cerr << "Error: Star traversed to end of tree but could not find a place to insert self. The star may not be within the root node bounds." << std::endl;
+    _registerStar(states);
 }
 
 void Universe::step() {
@@ -113,6 +124,8 @@ void Universe::step() {
         b->accel.past = b->accel.future;
         b->accel.future = {0, 0};
 
+        // TODO: need to replace current CoM calculation system as it doesnt update com when the body moves within a quad
+
         // if star moves out of current quad bounds
         if (!b->bounds.contains(b->pos)) {
             // all bodies are leaf nodes which do not have children
@@ -157,7 +170,7 @@ void Universe::step() {
     }
 
     for (std::vector<strippedBody>::const_iterator it = nodeChange.cbegin(); it != nodeChange.cend(); it++) {
-        _registerStar(root, *it);
+        registerStar(*it);
     }
 }
 
@@ -215,7 +228,7 @@ GLubyte* & Universe::snapshot(snapshotConfig config) {
     return renderWindow;
 }
 
-void Universe::registerGalaxy(point center, int amt, double coreMass, point coreVel) {
+void Universe::registerGalaxy(point center, int amt, double coreMass, point coreVel, point radius) {
     // ngl im basically guessing on all of these values idk anything about galactic properties
 
     point massRange = {2.0, 4}; // https://en.wikipedia.org/wiki/Stellar_mass;
@@ -223,18 +236,18 @@ void Universe::registerGalaxy(point center, int amt, double coreMass, point core
 
     for (int i = 0; i < amt; i++) {
         double theta = (rand() % 1000) / 1000.0 * 2.0 * 3.14159;
-        double radius = (rand() % 1000) / 1000.0 * 100 + 20;
+        double r = (rand() % 1000) / 1000.0 * radius.x + radius.y;
         double mass = (rand() % 1000) / 1000.0 * (massRange.y - massRange.x) + massRange.x;
 
         point pos = {
-            center.x + std::cos(theta) * radius,
-            center.y + std::sin(theta) * radius
+            center.x + std::cos(theta) * r,
+            center.y + std::sin(theta) * r
         };
 
-        double v = std::sqrt(body::G * coreMass / radius);
+        double v = std::sqrt(body::G * coreMass / r);
         point vel = {
-            v * std::sin(theta),
-            -v * std::cos(theta)
+            v * std::sin(theta) + coreVel.x,
+            -v * std::cos(theta) + coreVel.y
         };
 
         registerStar(pos, mass, vel);
@@ -256,7 +269,7 @@ void Universe::_traverse(body* node, const std::function<bool(body*, int)>& fore
 
 bool Universe::drawPixel(point p, GLubyte* c) {
     int ind = toRenderGrid(p);
-    if (ind >= width * height * 3 || ind < 0) return false;
+    if (ind < 0 || ind >= width * height * 3) return false;
 
     renderWindow[ind] = c[0];
     renderWindow[ind + 1] = c[1];

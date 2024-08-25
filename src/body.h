@@ -12,6 +12,7 @@ struct strippedBody {
 };
 
 struct body {
+    // TODO: consider using delta to inform whether or not updating the com matters
     static constexpr double DELTA = 0.5;
     static constexpr double G = 4.3009172706e-03; // parsec / solar mass * (km/s) ^ 2
     static constexpr double C = 299792.0; // km/s
