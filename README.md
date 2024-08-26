@@ -9,8 +9,8 @@ This is a small, performant project that implements the Barnes-Hut algorithm in 
 # Features
 1. **Leapfrog integration** (default Δt = 0.0025) is used to calculated each body's position from applied force.
 2. **Incremental center of mass calculations** instead of needing to re-traverse all children nodes. For example, the removal of a child node will automatically apply the correct new CoM to all of its parent nodes, rather then needing to request the parent to recalculate their CoM.
-3. **Direct access to bodies** via caching them into an array. The quad tree structure is used when calculating body forces while this cache is used for optimized drawing and actually applying the force (i.e. when calculating leapfrog integration).
-4. **Tail recursion during body insertion** into quad tree. While not strictly necessary (and technically slightly harms performance), this helps prevent stack overflows when two bodies collide.
+3. **Direct access to bodies** via caching them into an array. The quadtree structure is used when calculating body forces while this cache is used for optimized drawing and actually applying the force (i.e. when calculating leapfrog integration).
+4. **Tail recursion during body insertion** into quadtree. While not strictly necessary (and technically slightly harms performance), this helps prevent stack overflows when two bodies collide.
 5. **Atan2 approximation**. This can be disabled through the USE_ATAN2_APPROX directive in [body.cpp](src/body.cpp).
 
 # Improvements
