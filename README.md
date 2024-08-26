@@ -1,8 +1,10 @@
-# Barnes-Hut Simulator
-This is a small, performant project that implements the Barnes-Hut algorithm in C++ using Dear ImGUI as the visual display. The project was primarily designed as an education project for myself.
+<p align="center">
+  <img src="bg.png" />
+</p>
 
-> n=4000 Δt=0.0025, sped up 30x. Actual recording time is 15.5 mins.
-![](/out.mp4)
+> [n=4000 Δt=0.0025, sped up 30x. Actual recording time is 15.5 mins.](https://github.com/Andallfor/Barnes-Hut-Simulation/blob/main/out.mp4)
+# Barnes-Hut Simulator
+This is a small, performant project that implements the Barnes-Hut algorithm in C++ using Dear ImGUI as the visual display. The project was primarily designed as an education project for myself.  
 
 # Features
 1. **Leapfrog integration** (default Δt = 0.0025) is used to calculated each body's position from applied force.
