@@ -106,12 +106,10 @@ void Universe::step() {
         if (!b) continue;
 
         point prev = b->pos;
-
-        // hide previous position
-        drawPixel(b->pos, black);
+        hideBody(b);
 
         // leapfrog finite diff approx for t + 1
-        double dt = 0.01; // if inner ring starts pulsating in and out, decrease t
+        double dt = 0.0025; // if inner ring starts pulsating in and out, decrease t
         b->pos.x += b->velocity.x * dt + 0.5 * b->accel.past.x * dt * dt;
         b->pos.y += b->velocity.y * dt + 0.5 * b->accel.past.y * dt * dt;
 
@@ -138,9 +136,7 @@ void Universe::step() {
             continue;
         }
 
-        drawPixel(b->pos, white);
-
-        // TODO: need to replace current CoM calculation system as it doesnt update com when the body moves within a quad
+        drawBody(b);
 
         // if star moves out of current quad bounds
         if (!b->bounds.contains(b->pos)) {
@@ -176,7 +172,7 @@ void Universe::resizeWindow(int w, int h, bool redraw) {
     if (redraw) {
         for (int i = 0; i < bodyIndex; i++) {
             if (!registeredBodies[i]) continue;
-            drawPixel(registeredBodies[i]->pos, white);
+            drawBody(registeredBodies[i]);
         }
     }
 }

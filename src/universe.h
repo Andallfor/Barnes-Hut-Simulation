@@ -34,7 +34,6 @@ struct recursionState {
     bool affectCoM;
 };
 
-// TODO: implement array that holds references to all existing stars, so dont need to traverse entire tree every time
 class Universe {
 private:
     int width, height;
@@ -45,6 +44,17 @@ private:
     GLubyte white[3] = { 255, 255, 255 };
     GLubyte red[3] = {255, 0, 0};
     GLubyte green[3] = {0, 255, 0};
+    GLubyte orange[3] = {255, 165, 0};
+
+    GLubyte stellar[7][3] = {
+        {255, 181, 108},
+        {255, 218, 181},
+        {255, 237, 227},
+        {249, 245, 255},
+        {213, 224, 255},
+        {162, 192, 255},
+        {146, 181, 255}
+    };
 
     body* root = nullptr;
     std::vector<body*> registeredBodies;
@@ -57,6 +67,7 @@ private:
 
     void _traverse(body* node, const std::function<bool(body*, int)>& foreach, int depth = 0);
 
+    // TODO move into seperate file
     // draw pixel with color, assuming color is a pointer to GLubyte array of at least size 3
     bool drawPixel(point p, GLubyte* color);
     bool drawPixel(int ind, GLubyte* color);
@@ -70,6 +81,50 @@ private:
                 drawPixel(3 * ((y + _y) * width + x + _x), color);
             }
         }
+    }
+    void drawBlackHole(point p, GLubyte* color) {
+        pointi c = toRenderGridCoords(p);
+        if (c.x < 0 || c.x >= width || c.y < 0 || c.y >= height) return;
+
+        // ez
+        drawPixel(3 * ((c.y + 2) * width + c.x), color);
+        drawPixel(3 * ((c.y - 2) * width + c.x), color);
+        drawPixel(3 * (c.y * width + c.x + 2), color);
+        drawPixel(3 * (c.y * width + c.x - 2), color);
+
+        drawPixel(3 * ((c.y + 1) * width + c.x - 1), color);
+        drawPixel(3 * ((c.y + 1) * width + c.x + 1), color);
+        drawPixel(3 * ((c.y - 1) * width + c.x - 1), color);
+        drawPixel(3 * ((c.y - 1) * width + c.x + 1), color);
+    }
+
+    void drawCross(point p, GLubyte* color) {
+        pointi c = toRenderGridCoords(p);
+        if (c.x < 0 || c.x >= width || c.y < 0 || c.y >= height) return;
+
+        drawPixel(3 * (c.y * width + c.x), color);
+        drawPixel(3 * ((c.y + 1) * width + c.x), color);
+        drawPixel(3 * ((c.y - 1) * width + c.x), color);
+        drawPixel(3 * (c.y * width + c.x + 1), color);
+        drawPixel(3 * (c.y * width + c.x - 1), color);
+    }
+
+    void drawBody(body* b) {
+        // these dont match reality at all but /shrug
+        if (b->mass >= 10e3) drawBlackHole(b->pos, red);
+        else if (b->mass > 149.8) drawCross(b->pos, stellar[6]);
+        else if (b->mass > 149.5) drawCross(b->pos, stellar[5]);
+        else if (b->mass > 140) drawPixel(b->pos, stellar[4]);
+        else if (b->mass > 100) drawPixel(b->pos, stellar[3]);
+        else if (b->mass > 70) drawPixel(b->pos, stellar[2]);
+        else if (b->mass > 20) drawPixel(b->pos, stellar[1]);
+        else drawPixel(b->pos, stellar[0]);
+    }
+
+    void hideBody(body* b) {
+        if (b->mass >= 10e3) drawBlackHole(b->pos, black);
+        else if (b->mass >= 145) drawCross(b->pos, black);
+        else drawPixel(b->pos, black);
     }
 
     void registerToBodyIndex(body* b, bool verify = true) {

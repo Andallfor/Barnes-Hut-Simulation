@@ -11,12 +11,11 @@ int main() {
     if (!red.initialize(width, height)) return 1;
 
     Universe* universe = new Universe(width, height, 400);
-    universe->registerGalaxy({150, 250}, 1000, 10e6, {0, 0}, {7, 100});
-    //universe->registerGalaxy({400, 300}, 100, 10e6, {-5, 3}, {40, 7});
-    //universe->registerStar({230, 290}, 1, {std::sqrt(body::G * 10e6 / 80), 0});
-    //universe->registerStar({230, 210}, 10e6, {0, 0});
-
-    //universe->registerStar({190, 210}, 25000, {0, -1}); // remove for stable orbit
+    universe->registerGalaxy({200, 200}, 3000, 10e6, {0, 0}, {1, 70});
+    double r = 150;
+    double v = std::sqrt(body::G * 10e6 / r);
+    double a = 45.0 * 3.14159 / 180.0;
+    universe->registerGalaxy({200 + r * std::cos(a), 200 - r * std::sin(a)}, 1000, 10e5, {-v * std::cos(a), -v * std::sin(a)}, {1, 40});
 
     GLuint imgTex;
     glGenTextures(1, &imgTex);
